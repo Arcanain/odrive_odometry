@@ -17,8 +17,8 @@ catkin_package(
 
 include_directories(
 # include
-# ${catkin_INCLUDE_DIRS}
+  ${catkin_INCLUDE_DIRS}
 )
 
-#add_executable(odometry_publisher src/odometry_publisher.cpp)
-#target_link_libraries(odometry_publisher ${catkin_LIBRARIES})
+add_executable(odometry_publisher src/odometry_publisher.cpp)
+target_link_libraries(odometry_publisher ${catkin_LIBRARIES})
