@@ -13,5 +13,5 @@ rosrun odrive_odometry odometry_publisher
 
 - Terminal 3
 ```bash
-rosrun ros_odrive key_teleop.py
+rosrun odrive_odometry key_teleop.py
 ```
