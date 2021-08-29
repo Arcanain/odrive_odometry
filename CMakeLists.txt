@@ -4,6 +4,7 @@ project(odrive_odometry)
 find_package(catkin REQUIRED COMPONENTS
   nav_msgs
   roscpp
+  rospy
   std_msgs
   tf
 )
@@ -11,7 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES odrive_odometry
-   CATKIN_DEPENDS nav_msgs roscpp std_msgs tf
+   CATKIN_DEPENDS nav_msgs roscpp rospy std_msgs tf
 #  DEPENDS system_lib
 )
 
