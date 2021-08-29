@@ -62,7 +62,7 @@ class KeyTeleop(object):
     Moving around:
       Q   W   E
       A   S   D
-      Z   X   Z
+      Z   X   C
     T/B :   increase/decrease max speeds 10%
     Y/N :   increase/decrease only linear speed 10%
     U/M :   increase/decrease only angular speed 10%
