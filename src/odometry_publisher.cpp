@@ -1,137 +1,84 @@
 #include <ros/ros.h>
-#include <std_msgs/Int32MultiArray.h>
-#include <std_msgs/Float32MultiArray.h>
 #include <tf/transform_broadcaster.h>
+#include <std_msgs/Int16MultiArray.h>
+#include <std_msgs/Float32MultiArray.h>
 #include <nav_msgs/Odometry.h>
 
-// HajimeCart parameter
-const double wheel_radius           = 0.095f;   
-const double base_width             = 0.340f; 
-const float wheel_to_wheel_distance = 0.310f;
+float base_width = 0.32f;       // Distance between the left and right wheels of the robot
+float ticks_meter = 172.8f;     // Encoder count of motor per meter　[count / m]
 
-// ロータリーエンコーダの1回転あたりのパルス数
-int rotary_encoder_resolution = 100;
+float encoder_left = 0.0f;      // encoder left count value
+float encoder_right = 0.0f;     // encoder right count value
+float d_left = 0.0f;            // calculates micro left travel distance from encoder value
+float d_right = 0.0f;           // calculates micro right travel distance from encoder value
+float pre_encoder_left = 0.0f;  // save the encoder value left from one step ago
+float pre_encoder_right = 0.0f; // save the encoder value right from one step ago
 
-// ロータリーエンコーダの回転数を保持. 1回転で400増加
-int encoder_value_left  = 0;
-int encoder_value_right = 0;
+float dist = 0.0f;              // average travel distance of left and right wheels
 
-// 現時刻でのロータリーエンコーダの角度を保持
-float rotation_angle_left  = 0.0f;
-float rotation_angle_right = 0.0f;
+float x = 0.0f;
+float y = 0.0f;
+float th = 0.0f;
+float dx = 0.0f;
+float dy = 0.0f;
+float dth = 0.0f;
 
-// 前時刻でのロータリーエンコーダの角度を保持
-float pre_rotation_angle_left = 0.0f;
-float pre_rotation_angle_right = 0.0f;
+float dt = 0.0f;
+float vx = 0.0f;
+float vy = 0.0f;
+float vth = 0.0f;
 
-// 現時刻でのロータリーエンコーダの角速度を保持
-float rotation_angular_velocity_left  = 0.0f;
-float rotation_angular_velocity_right = 0.0f;
-
-// 両車輪の移動速度
-float left_vel  = 0.0f;
-float right_vel = 0.0f;
-
-// ロボットの並進速度
-float linear_vel = 0.0f;
-// ロボットの回転速度
-float angular_vel = 0.0f;
-
-// ロボットの位置と姿勢
-float x     = 0.0f;
-float y     = 0.0f;
-float theta = 0.0f;
-
-// first flag
-int flag_firsttime = 1;
-
-// ros time
-ros::Publisher odom_pub;
-ros::Publisher rotation_angular_velocity_pub;
 ros::Time current_time;
 ros::Time last_time;
 
-std_msgs::Float32MultiArray rotation_angular_velocity_data;
-
-void encoderCallback(const std_msgs::Int32MultiArray::ConstPtr& msg);
-
-int main(int argc, char** argv){
-    ros::init(argc, argv, "odometry_publisher");
-    ros::NodeHandle nh;
-
-    ros::Subscriber encoder_sub = nh.subscribe("encoder", 10, encoderCallback);
-    odom_pub = nh.advertise<nav_msgs::Odometry>("odom", 50);
-    rotation_angular_velocity_pub  = nh.advertise<std_msgs::Float32MultiArray>("rotation_angular_velocity", 10);
-    ros::spin(); // check for incoming messages
-
-    return 0;
-}
-
-void encoderCallback(const std_msgs::Int32MultiArray::ConstPtr& msg)
-{
-    static tf::TransformBroadcaster odom_broadcaster;
-
-    encoder_value_left  = msg->data[0];
-    encoder_value_right = msg->data[1];
-
-    if( flag_firsttime )
-    {
-        flag_firsttime = 0;
-
-     	last_time = ros::Time::now();
-
-        return;
-    }
-
+ros::Publisher odom_pub;
+ 
+/**
+***********************************************************************
+* Odometry publish
+***********************************************************************
+*/
+void encoderCallback(const std_msgs::Float32MultiArray& msg){
+    tf::TransformBroadcaster odom_broadcaster;
     current_time = ros::Time::now();
 
-    //compute odometry in a typical way given the velocities of the robot
-    double dt = (current_time - last_time).toSec();
-
-    /**
-     ***********************************************************************
-     * Odometry
-     ***********************************************************************
-    */
     //-------------------------------------------
-    // タイヤの回転角
+    // Get the encoder values of the left and right wheels
     //-------------------------------------------
-    rotation_angle_left  = encoder_value_left * (2 * 3.14f)/(4 * rotary_encoder_resolution);
-    rotation_angle_right = encoder_value_right * (2 * 3.14f)/(4 * rotary_encoder_resolution);
+    encoder_left  = msg.data[0];
+    encoder_right = msg.data[1];
 
     //-------------------------------------------
-    // タイヤの回転速度
+    // Calculates micro travel distance from encoder value
     //-------------------------------------------
-    rotation_angular_velocity_left  = (rotation_angle_left - pre_rotation_angle_left) / dt;
-    rotation_angular_velocity_right = (rotation_angle_right - pre_rotation_angle_right) / dt;
-
-    rotation_angular_velocity_data.data[0] = rotation_angular_velocity_left;
-    rotation_angular_velocity_data.data[1] = rotation_angular_velocity_right; 
-    rotation_angular_velocity_pub.publish(rotation_angular_velocity_data);
-
+    d_left  = (encoder_left - pre_encoder_left) / ticks_meter;   //convert encoder count into m 
+    d_right = (encoder_right - pre_encoder_right) / ticks_meter; //convert encoder count into m 
+    pre_encoder_left  = encoder_left;
+    pre_encoder_right = encoder_right;
+    
     //-------------------------------------------
-    // ロボットの移動速度
+    // Micro travel distance of robot
     //-------------------------------------------
-    left_vel    = rotation_angular_velocity_left * wheel_radius;
-    right_vel   = rotation_angular_velocity_right * wheel_radius;
-    linear_vel  = (right_vel + left_vel) / 2.0f;
-    angular_vel = (right_vel - left_vel) / wheel_to_wheel_distance;
+    dist = (d_left + d_right) / 2.0f;      // distance traveled is the average of the two wheels 
+    dth = (d_right - d_left) / base_width; // this approximation works (in radians) for small angles    
+    dx = dist * cos(th);
+    dy = dist * sin(th);
 
     //-------------------------------------------
-    // ロボットの位置
+    // Position and orientation of the robot
     //-------------------------------------------
-    x     = x + linear_vel * dt * cos(theta + angular_vel / 2.0f);
-    y     = y + linear_vel * dt * sin(theta + angular_vel / 2.0f);
-    theta = theta + angular_vel * dt;
+    x += dx;
+    y += dy;
+    th += dth;
 
     //since all odometry is 6DOF we'll need a quaternion created from yaw
-    geometry_msgs::Quaternion odom_quat = tf::createQuaternionMsgFromYaw(theta);
-
+    geometry_msgs::Quaternion odom_quat = tf::createQuaternionMsgFromYaw(th);
+    
     //first, we'll publish the transform over tf
     geometry_msgs::TransformStamped odom_trans;
     odom_trans.header.stamp = current_time;
     odom_trans.header.frame_id = "odom";
-    odom_trans.child_frame_id = "base_footprint";
+    odom_trans.child_frame_id = "base_link";
 
     odom_trans.transform.translation.x = x;
     odom_trans.transform.translation.y = y;
@@ -141,25 +88,44 @@ void encoderCallback(const std_msgs::Int32MultiArray::ConstPtr& msg)
     //send the transform
     odom_broadcaster.sendTransform(odom_trans);
 
+    //-------------------------------------------
+    // Robot movement speed
+    //-------------------------------------------
+    dt = (current_time - last_time).toSec(); //calc velocities
+    vx = dist / dt; //v is in base_link frame
+    vy = 0;
+    vth = dth / dt;
+
     //next, we'll publish the odometry message over ROS
-    nav_msgs::Odometry odom;
+    nav_msgs::Odometry odom; //create nav_msgs::odometry 
     odom.header.stamp = current_time;
     odom.header.frame_id = "odom";
 
-    //set the position
-    odom.pose.pose.position.x = x;
+    odom.pose.pose.position.x = x; //set positions 
     odom.pose.pose.position.y = y;
     odom.pose.pose.position.z = 0.0;
     odom.pose.pose.orientation = odom_quat;
 
-    //set the velocity
-    odom.child_frame_id = "base_footprint";
-    odom.twist.twist.linear.x = linear_vel;
-    odom.twist.twist.linear.y = 0;
-    odom.twist.twist.angular.z = angular_vel;
+    odom.child_frame_id = "base_link"; // set child frame and set velocity in twist message
+    odom.twist.twist.linear.x = vx;
+    odom.twist.twist.linear.y = vy;
+    odom.twist.twist.angular.z = vth;
 
-    //publish the message
-    odom_pub.publish(odom);
+    odom_pub.publish(odom); //publish odom message
 
     last_time = current_time;
+}
+
+int main(int argc, char** argv){
+    ros::init(argc, argv, "odometry_publisher");
+
+    ros::NodeHandle nh; 
+    odom_pub = nh.advertise<nav_msgs::Odometry>("/odom", 50);
+    ros::Subscriber encoder_sub = nh.subscribe("/encoder", 50, encoderCallback);
+
+    current_time = ros::Time::now();
+    last_time = ros::Time::now();
+
+    ros::spin();
+    return 0;
 }
