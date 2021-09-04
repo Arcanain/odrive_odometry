@@ -65,10 +65,20 @@ void encoderCallback(const std_msgs::Float32MultiArray& msg){
     dy = dist * sin(th);
 
     //-------------------------------------------
+    // Robot movement speed
+    //-------------------------------------------
+    dt = (current_time - last_time).toSec(); //calc velocities
+    vx = dist / dt; //v is in base_link frame
+    vy = 0;
+    vth = dth / dt;
+
+    //-------------------------------------------
     // Position and orientation of the robot
     //-------------------------------------------
-    x += dx;
-    y += dy;
+    x += (vx * cos(th) - vy * sin(th)) * dt;
+    y += (vx * sin(th) + vy * cos(th)) * dt;
+    //x += dx;
+    //y += dy;
     th += dth;
 
     //since all odometry is 6DOF we'll need a quaternion created from yaw
@@ -87,14 +97,6 @@ void encoderCallback(const std_msgs::Float32MultiArray& msg){
 
     //send the transform
     odom_broadcaster.sendTransform(odom_trans);
-
-    //-------------------------------------------
-    // Robot movement speed
-    //-------------------------------------------
-    dt = (current_time - last_time).toSec(); //calc velocities
-    vx = dist / dt; //v is in base_link frame
-    vy = 0;
-    vth = dth / dt;
 
     //next, we'll publish the odometry message over ROS
     nav_msgs::Odometry odom; //create nav_msgs::odometry 
