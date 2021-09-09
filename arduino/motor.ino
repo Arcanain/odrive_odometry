@@ -1,6 +1,6 @@
 /* Board  : Arduino Mega 2560
  * Author : Ramune6110
- * Data   : 2021 08/29
+ * Data   : 2021 09/09
  * ********************************************************************************
  * Topic
  * Publish  | encoder
@@ -131,8 +131,8 @@ void messageCb(const geometry_msgs::Twist& msg)
   w_r = (speed_lin / wheel_rad) + ((speed_ang * wheel_sep) / (2.0 * wheel_rad));
   w_l = (speed_lin / wheel_rad) - ((speed_ang * wheel_sep) / (2.0 * wheel_rad));
 
-  vel1 = w_r * 0.3;
-  vel2 = w_l * 0.3;
+  vel1 = w_r * 0.15;
+  vel2 = w_l * 0.15;
 
   //velに送る値の単位はrpm(rad/s → turn/sに変換する必要あり)
   odrive.SetVelocity(0, vel1);
