@@ -1,6 +1,6 @@
 /* Board  : Arduino Mega 2560
  * Author : Ramune6110
- * Data   : 2021 09/09
+ * Data   : 2021 08/29
  * ********************************************************************************
  * Topic
  * Publish  | encoder
@@ -128,15 +128,21 @@ void messageCb(const geometry_msgs::Twist& msg)
 {
   speed_lin = msg.linear.x;
   speed_ang = msg.angular.z;
-  w_r = (speed_lin / wheel_rad) + ((speed_ang * wheel_sep) / (2.0 * wheel_rad));
-  w_l = (speed_lin / wheel_rad) - ((speed_ang * wheel_sep) / (2.0 * wheel_rad));
+  w_r = (speed_lin / wheel_rad) + ((speed_ang * wheel_sep) / (2.0f * wheel_rad));
+  w_l = (speed_lin / wheel_rad) - ((speed_ang * wheel_sep) / (2.0f * wheel_rad));
 
-  vel1 = w_r * 0.15;
-  vel2 = w_l * 0.15;
+  vel1 = w_r * 0.3f;
+  vel2 = -w_l * 0.3f;
 
   //velに送る値の単位はrpm(rad/s → turn/sに変換する必要あり)
   odrive.SetVelocity(0, vel1);
   odrive.SetVelocity(1, vel2);
+
+//  odrive.SetVelocity(0, 1.0f);
+//  odrive.SetVelocity(1, 1.0f);
+
+//  odrive.SetVelocity(0, w_r);
+//  odrive.SetVelocity(1, w_l);
 }
 
 void array_init(std_msgs::Float32MultiArray& data, int array) 
