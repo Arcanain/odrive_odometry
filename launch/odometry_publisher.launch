@@ -1,0 +1,5 @@
+<launch>
+    <!-- odometry_publisher node  -->
+    <node pkg="odrive_odometry" name="odometry_publisher" type="odometry_publisher"/>
+  
+</launch>
